@@ -1,0 +1,741 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>黑白屏蔽词转换器</title>
+    <style>
+        /* ===== 极简平板重置 ===== */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html,
+        body {
+            height: 100%;
+            font-family: system-ui, -apple-system, 'Segoe UI', Roboto, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+            background: #f5f7fa;
+            color: #1e2a3a;
+        }
+
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+        }
+
+        /* ===== 主容器：上下边距各缩短10px，整体高度缩减5% ===== */
+        .app {
+            max-width: 720px;
+            width: 100%;
+            height: 95vh;
+            /* 比原来短5% */
+            padding: 90px 30px 90px 30px;
+            /* 上下各缩短10px */
+            display: flex;
+            flex-direction: column;
+            background: transparent;
+            overflow: hidden;
+        }
+
+        /* ===== 输入标题行（含字数统计） ===== */
+        .input-header {
+            display: flex;
+            align-items: baseline;
+            gap: 10px;
+            margin-bottom: 6px;
+            flex-shrink: 0;
+        }
+
+        .row-label {
+            font-size: 16px;
+            font-weight: 600;
+            color: #4a5a72;
+            letter-spacing: 0.4px;
+            margin-bottom: 0;
+        }
+
+        .word-count {
+            font-size: 15px;
+            color: #9aabbf;
+            font-weight: 400;
+            line-height: 1.5;
+        }
+
+        /* ===== 文本域 ===== */
+        .input-textarea {
+            flex: 1;
+            width: 100%;
+            padding: 12px 14px;
+            font-size: 16px;
+            font-family: inherit;
+            border: 1px solid #d0d7e2;
+            background: #ffffff;
+            color: #1e2a3a;
+            outline: none;
+            border-radius: 0;
+            resize: vertical;
+            transition: border-color 0.2s, background 0.2s;
+            line-height: 1.5;
+            min-height: 100px;
+        }
+        .input-textarea:focus {
+            border-color: #6c8fc7;
+            background: #ffffff;
+        }
+        .input-textarea::placeholder {
+            color: #9aabbf;
+            font-size: 16px;
+        }
+
+        /* ===== 按钮行 ===== */
+        .button-row {
+            display: flex;
+            justify-content: space-between;
+            gap: 10px;
+            margin-top: 10px;
+            margin-bottom: 4px;
+            flex-shrink: 0;
+        }
+
+        .btn {
+            flex: 1;
+            padding: 10px 0;
+            font-size: 16px;
+            font-weight: 600;
+            font-family: inherit;
+            background: #f0f2f5;
+            border: 1px solid #d0d7e2;
+            color: #2b5f9e;
+            cursor: pointer;
+            transition: background 0.2s, border-color 0.2s, color 0.2s;
+            border-radius: 0;
+            letter-spacing: 0.3px;
+            text-align: center;
+        }
+        .btn:hover {
+            background: #e4e8ed;
+            border-color: #b0c0d2;
+            color: #1a3f6f;
+        }
+        .btn:active {
+            background: #d5dce4;
+        }
+        .btn-clear {
+            color: #4a5a72;
+        }
+        .btn-clear:hover {
+            color: #1e2a3a;
+        }
+        .btn-fullscreen {
+            color: #2b5f9e;
+        }
+        .btn-fullscreen:hover {
+            color: #1a3f6f;
+        }
+
+        /* ===== 分割线 ===== */
+        .divider {
+            border: 0;
+            height: 1px;
+            background: #e4e8ed;
+            margin: 14px 0 12px 0;
+            flex-shrink: 0;
+        }
+
+        /* ===== 输出标题 ===== */
+        .output-label {
+            display: block;
+            font-size: 16px;
+            font-weight: 600;
+            color: #4a5a72;
+            letter-spacing: 0.4px;
+            margin-bottom: 6px;
+            flex-shrink: 0;
+        }
+
+        /* ===== 输出展示行 ===== */
+        .display-row {
+            display: flex;
+            align-items: stretch;
+            min-height: 46px;
+            border-bottom: 1px solid #edf0f4;
+            margin-top: 6px;
+            background: transparent;
+            flex-shrink: 0;
+        }
+
+        .display-content {
+            flex: 1;
+            padding: 8px 12px;
+            font-size: 15px;
+            line-height: 1.6;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            cursor: pointer;
+            user-select: none;
+            text-decoration: underline;
+            text-underline-offset: 3px;
+            text-decoration-color: #a0b8d6;
+            text-decoration-thickness: 1.5px;
+            color: #2b5f9e;
+            font-weight: 500;
+            min-width: 0;
+            background: transparent;
+            transition: color 0.15s, text-decoration-color 0.15s;
+        }
+        .display-content:hover {
+            color: #1a3f6f;
+            text-decoration-color: #2b5f9e;
+        }
+        .display-content:active {
+            color: #0f2b4a;
+        }
+        .display-content.empty {
+            color: #9aabbf;
+            font-weight: 400;
+            text-decoration: none;
+            cursor: default;
+        }
+        .display-content.empty:hover {
+            color: #9aabbf;
+            text-decoration: none;
+        }
+
+        .display-content.expanded {
+            white-space: pre-wrap;
+            word-break: break-all;
+            overflow: visible;
+            text-overflow: clip;
+            max-height: none;
+        }
+
+        .toggle-btn {
+            flex-shrink: 0;
+            width: 36px;
+            min-height: 46px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: transparent;
+            border: none;
+            cursor: pointer;
+            color: #7a8fa8;
+            padding: 0 6px;
+            transition: color 0.2s, background 0.2s;
+            border-radius: 0;
+            font-size: 13px;
+        }
+        .toggle-btn:hover {
+            color: #2b5f9e;
+            background: rgba(43, 95, 158, 0.04);
+        }
+        .toggle-btn .arrow {
+            display: inline-block;
+            transition: transform 0.25s ease;
+            font-size: 13px;
+            line-height: 1;
+            transform: rotate(0deg);
+        }
+        .toggle-btn .arrow.rotated {
+            transform: rotate(180deg);
+        }
+
+        /* ===== 复制输出内容按钮 ===== */
+        .copy-row {
+            margin-top: 12px;
+            display: flex;
+            justify-content: flex-end;
+            flex-shrink: 0;
+        }
+
+        .btn-copy-output {
+            padding: 10px 28px;
+            font-size: 18px;
+            font-weight: 600;
+            font-family: inherit;
+            background: #f0f2f5;
+            border: 1px solid #d0d7e2;
+            color: #2b5f9e;
+            cursor: pointer;
+            transition: background 0.2s, border-color 0.2s, color 0.2s;
+            border-radius: 0;
+            letter-spacing: 0.3px;
+        }
+        .btn-copy-output:hover {
+            background: #e4e8ed;
+            border-color: #b0c0d2;
+            color: #1a3f6f;
+        }
+        .btn-copy-output:active {
+            background: #d5dce4;
+        }
+        .btn-copy-output.copied {
+            background: #e1ebe7;
+            border-color: #8bb3a6;
+            color: #1d6b4e;
+        }
+
+        /* ============================================================
+                   全屏覆盖层
+                   ============================================================ */
+        .fullscreen-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: #f5f7fa;
+            z-index: 9999;
+            padding: 24px;
+            flex-direction: column;
+        }
+        .fullscreen-overlay.active {
+            display: flex;
+        }
+
+        .fullscreen-textarea {
+            flex: 1;
+            width: 100%;
+            padding: 30px 36px;
+            font-size: 16px;
+            font-family: inherit;
+            border: none;
+            outline: none;
+            background: #ffffff;
+            color: #1e2a3a;
+            resize: none;
+            line-height: 1.8;
+            border-radius: 0;
+            box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
+        }
+        .fullscreen-textarea::placeholder {
+            color: #9aabbf;
+            font-size: 16px;
+        }
+
+        /* ===== 圆形 X 关闭按钮：30px，X字号10px，垂直居中 ===== */
+        .exit-fullscreen-btn {
+            position: fixed;
+            top: 24px;
+            right: 24px;
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            background: #f0f2f5;
+            border: 1px solid #d0d7e2;
+            color: #4a5a72;
+            font-size: 10px;
+            font-weight: 400;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.2s, border-color 0.2s, color 0.2s, transform 0.15s;
+            z-index: 10000;
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            line-height: 1;
+            padding: 0;
+            user-select: none;
+            text-align: center;
+        }
+        .exit-fullscreen-btn:hover {
+            background: #e4e8ed;
+            border-color: #b0c0d2;
+            color: #1e2a3a;
+        }
+        .exit-fullscreen-btn:active {
+            transform: scale(0.92);
+            background: #d5dce4;
+        }
+
+        /* ===== Toast 轻提示 ===== */
+        .toast {
+            position: fixed;
+            bottom: 28px;
+            left: 50%;
+            transform: translateX(-50%) translateY(70px);
+            background: #1e2a3a;
+            color: #f0f4fa;
+            padding: 10px 24px;
+            font-size: 14px;
+            font-weight: 500;
+            border-radius: 0;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+            opacity: 0;
+            transition: opacity 0.28s ease, transform 0.32s cubic-bezier(0.22, 1, 0.36, 1);
+            pointer-events: none;
+            z-index: 999;
+            border: 1px solid #3a4a5e;
+        }
+        .toast.show {
+            opacity: 1;
+            transform: translateX(-50%) translateY(0px);
+        }
+
+        /* ===== 响应式微调 ===== */
+        @media (max-width: 500px) {
+            .app {
+                padding: 60px 30px 60px 30px;
+                height: 95vh;
+            }
+            .input-textarea {
+                font-size: 15px;
+                padding: 8px 10px;
+                min-height: 80px;
+            }
+            .input-textarea::placeholder {
+                font-size: 15px;
+            }
+            .row-label,
+            .word-count,
+            .output-label {
+                font-size: 15px;
+            }
+            .word-count {
+                font-size: 14px;
+            }
+            .btn {
+                padding: 8px 0;
+                font-size: 14px;
+            }
+            .btn-copy-output {
+                padding: 8px 20px;
+                font-size: 16px;
+                width: 100%;
+                justify-content: center;
+            }
+            .copy-row {
+                justify-content: stretch;
+            }
+            .display-content {
+                font-size: 14px;
+                padding: 6px 10px;
+            }
+            .toggle-btn {
+                width: 32px;
+                min-height: 40px;
+            }
+            .fullscreen-overlay {
+                padding: 12px;
+            }
+            .fullscreen-textarea {
+                padding: 16px 18px;
+                font-size: 15px;
+            }
+            .fullscreen-textarea::placeholder {
+                font-size: 15px;
+            }
+            .exit-fullscreen-btn {
+                width: 26px;
+                height: 26px;
+                font-size: 9px;
+                top: 12px;
+                right: 12px;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- ===== 主应用 ===== -->
+    <div class="app">
+        <!-- 输入标题 + 字数统计 -->
+        <div class="input-header">
+            <span class="row-label">输入</span>
+            <span class="word-count" id="wordCount">当前字数：0</span>
+        </div>
+
+        <!-- 输入框 -->
+        <textarea
+        class="input-textarea"
+        id="inputField"
+        placeholder="请输入文本"
+        spellcheck="false"
+    ></textarea>
+
+    <!-- 按钮行：清空 + 全屏 -->
+    <div class="button-row">
+        <button class="btn btn-clear" id="clearBtn">清空</button>
+        <button class="btn btn-fullscreen" id="fullscreenBtn">全屏</button>
+    </div>
+
+    <!-- 分割线 -->
+    <hr class="divider" />
+
+    <!-- 输出标题 -->
+    <span class="output-label">输出</span>
+
+    <!-- 输出内容展示 -->
+    <div class="display-row">
+        <span
+        class="display-content empty"
+        id="outputDisplay"
+        role="button"
+        tabindex="0"
+        aria-label="点击复制输出内容"
+        >
+        等待输入…
+    </span>
+    <button class="toggle-btn" id="outputToggleBtn" type="button" aria-label="展开或收起输出内容">
+        <span class="arrow" id="outputArrow">▾</span>
+    </button>
+</div>
+
+<!-- 复制输出内容按钮 -->
+<div class="copy-row">
+    <button class="btn-copy-output" id="copyOutputBtn">复制输出内容</button>
+</div>
+<div>
+	<br>
+	<a style="font-size: 14px; color: gray;">*使用手机自带浏览器可能无法复制，更换浏览器即可</a>
+</div>
+
+<!-- ===== 全屏覆盖层 ===== -->
+<div class="fullscreen-overlay" id="fullscreenOverlay">
+    <textarea
+    class="fullscreen-textarea"
+    id="fullscreenTextarea"
+    placeholder="请输入文本"
+    spellcheck="false"
+></textarea>
+<button class="exit-fullscreen-btn" id="exitFullscreenBtn">✕</button>
+</div>
+
+<!-- ===== Toast ===== -->
+<div class="toast" id="toast"></div>
+
+<script>
+    (function() {
+        'use strict';
+
+        // ----- DOM 引用 -----
+        const inputField = document.getElementById('inputField');
+        const outputDisplay = document.getElementById('outputDisplay');
+        const clearBtn = document.getElementById('clearBtn');
+        const fullscreenBtn = document.getElementById('fullscreenBtn');
+        const copyOutputBtn = document.getElementById('copyOutputBtn');
+        const wordCountEl = document.getElementById('wordCount');
+
+        const outputToggleBtn = document.getElementById('outputToggleBtn');
+        const outputArrow = document.getElementById('outputArrow');
+
+        const fullscreenOverlay = document.getElementById('fullscreenOverlay');
+        const fullscreenTextarea = document.getElementById('fullscreenTextarea');
+        const exitFullscreenBtn = document.getElementById('exitFullscreenBtn');
+
+        const toastEl = document.getElementById('toast');
+
+        // ----- 状态 -----
+        let outputExpanded = false;
+        let currentOutputText = '';
+        let isFullscreen = false;
+
+        // ----- 工具：复制 -----
+        async function copyText(text, successMsg = '已复制') {
+            if (!text || text.trim() === '' || text === '等待输入…') {
+                showToast('没有可复制的内容');
+                return false;
+            }
+            try {
+                await navigator.clipboard.writeText(text);
+                showToast(successMsg);
+                return true;
+            } catch (_) {
+                try {
+                    const ta = document.createElement('textarea');
+                    ta.value = text;
+                    ta.style.position = 'fixed';
+                    ta.style.opacity = '0';
+                    ta.style.left = '-9999px';
+                    document.body.appendChild(ta);
+                    ta.select();
+                    document.execCommand('copy');
+                    document.body.removeChild(ta);
+                    showToast(successMsg);
+                    return true;
+                } catch (__) {
+                    showToast('复制失败，请手动复制');
+                    return false;
+                }
+            }
+        }
+
+        // ----- Toast -----
+        let toastTimer = null;
+
+        function showToast(msg) {
+            if (toastTimer) {
+                clearTimeout(toastTimer);
+                toastEl.classList.remove('show');
+            }
+            void toastEl.offsetWidth;
+            toastEl.textContent = msg;
+            toastEl.classList.add('show');
+            toastTimer = setTimeout(() => {
+                toastEl.classList.remove('show');
+                toastTimer = null;
+            }, 2000);
+        }
+
+        // ----- 核心转换：每个字符后加 "a" -----
+        function transformText(text) {
+            if (!text) return '';
+            const chars = Array.from(text);
+            return chars.map(ch => ch + '⁢⁣').join('');
+        }
+
+        // ----- 更新字数统计 -----
+        function updateWordCount() {
+            const raw = inputField.value;
+            wordCountEl.textContent = `当前字数：${raw.length}`;
+        }
+
+        // ----- 刷新输出展示 -----
+        function refreshOutput() {
+            const raw = inputField.value;
+            const isEmpty = raw === '';
+
+            const result = isEmpty ? '' : transformText(raw);
+            currentOutputText = result;
+            outputDisplay.textContent = isEmpty ? '等待输入…' : result;
+            outputDisplay.classList.toggle('empty', isEmpty);
+
+            updateWordCount();
+
+            if (isEmpty && outputExpanded) {
+                toggleOutputExpand(false);
+            }
+
+            if (isFullscreen) {
+                fullscreenTextarea.value = raw;
+            }
+        }
+
+        // ----- 展开切换 -----
+        function toggleOutputExpand(forceState) {
+            const newState = (forceState !== undefined) ? forceState : !outputExpanded;
+            if (newState === outputExpanded) return;
+            outputExpanded = newState;
+            outputDisplay.classList.toggle('expanded', outputExpanded);
+            outputArrow.classList.toggle('rotated', outputExpanded);
+        }
+
+        // ----- 清空输入 -----
+        function clearInput() {
+            inputField.value = '';
+            if (isFullscreen) {
+                fullscreenTextarea.value = '';
+            }
+            refreshOutput();
+            inputField.focus();
+            showToast('已清空');
+        }
+
+        // ----- 进入全屏 -----
+        function enterFullscreen() {
+            isFullscreen = true;
+            fullscreenTextarea.value = inputField.value;
+            fullscreenOverlay.classList.add('active');
+            setTimeout(() => {
+                fullscreenTextarea.focus();
+            }, 50);
+            showToast('已进入全屏输入');
+        }
+
+        // ----- 退出全屏 -----
+        function exitFullscreen() {
+            isFullscreen = false;
+            fullscreenOverlay.classList.remove('active');
+            inputField.value = fullscreenTextarea.value;
+            refreshOutput();
+            inputField.focus();
+            showToast('已退出全屏');
+        }
+
+        // ===== 事件绑定 =====
+
+        inputField.addEventListener('input', refreshOutput);
+
+        outputDisplay.addEventListener('click', function(e) {
+            e.stopPropagation();
+            if (!currentOutputText) {
+                showToast('没有内容可复制');
+                return;
+            }
+            copyText(currentOutputText, '已复制输出内容');
+        });
+        outputDisplay.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                this.click();
+            }
+        });
+
+        outputToggleBtn.addEventListener('click', function(e) {
+            e.stopPropagation();
+            if (!currentOutputText) {
+                showToast('没有内容可展开');
+                return;
+            }
+            toggleOutputExpand();
+        });
+
+        clearBtn.addEventListener('click', clearInput);
+        fullscreenBtn.addEventListener('click', enterFullscreen);
+        exitFullscreenBtn.addEventListener('click', exitFullscreen);
+
+        fullscreenTextarea.addEventListener('input', function() {
+            inputField.value = fullscreenTextarea.value;
+            refreshOutput();
+        });
+
+        fullscreenTextarea.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                e.preventDefault();
+                exitFullscreen();
+            }
+        });
+
+        copyOutputBtn.addEventListener('click', function() {
+            if (!currentOutputText) {
+                showToast('没有输出内容可复制');
+                return;
+            }
+            const success = copyText(currentOutputText, '已复制输出内容');
+            if (success) {
+                copyOutputBtn.classList.add('copied');
+                setTimeout(() => {
+                    copyOutputBtn.classList.remove('copied');
+                }, 1200);
+            }
+        });
+
+        inputField.addEventListener('keydown', function(e) {
+            if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+                e.preventDefault();
+                clearInput();
+            }
+        });
+
+        fullscreenTextarea.addEventListener('keydown', function(e) {
+            if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+                e.preventDefault();
+                clearInput();
+            }
+        });
+
+        // ----- 初始化 -----
+        refreshOutput();
+        outputArrow.classList.remove('rotated');
+
+        console.log('✨ 文本转换器已启动 — 规则：每个字符后加 "a"');
+        console.log('💡 点击输出文字复制，点击三角展开，点击「全屏」沉浸式输入');
+    })();
+</script>
+</body>
+</html>
